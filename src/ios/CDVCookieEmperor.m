@@ -50,14 +50,73 @@
     NSString* urlString = [command.arguments objectAtIndex:0];
     NSString* cookieName = [command.arguments objectAtIndex:1];
     NSString* cookieValue = [command.arguments objectAtIndex:2];
-
+    
     NSMutableDictionary *cookieProperties = [NSMutableDictionary dictionary];
+    
+    // Parse cookie properties from "cookieValue" value
+    NSArray *cookieKeyValue = [cookieValue componentsSeparatedByString:@";"];
+    for (NSString *property in cookieKeyValue) {
+        NSRange separator = [property rangeOfString:@"="];
+        if(separator.location != NSNotFound && separator.location > 0
+           && separator.location <= ([property length] -1 )) {
+            
+            NSRange keyRange = NSMakeRange(0, separator.location);
+            NSString* key = [property substringWithRange:keyRange];
+            NSString* value= [property substringFromIndex:(separator.location + separator.length)];
+            
+            key = [key stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+            value = [value stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+            NSString *uppercaseKey = [key uppercaseString];
+            if ([uppercaseKey isEqualToString:@"VERSION"]) {
+                [cookieProperties setObject:value forKey:NSHTTPCookieVersion];
+            } else if ([uppercaseKey isEqualToString:@"MAX-AGE"]||[uppercaseKey isEqualToString:@"MAXAGE"]) {
+                [cookieProperties setObject:value forKey:NSHTTPCookieMaximumAge];
+            } else if ([uppercaseKey isEqualToString:@"PATH"]) {
+                [cookieProperties setObject:value forKey:NSHTTPCookiePath];
+            } else if([uppercaseKey isEqualToString:@"PORT"]){
+                [cookieProperties setObject:value forKey:NSHTTPCookiePort];
+            } else if([uppercaseKey isEqualToString:@"SECURE"]||[uppercaseKey isEqualToString:@"ISSECURE"]){
+                [cookieProperties setObject:value forKey:NSHTTPCookieSecure];
+            } else if([uppercaseKey isEqualToString:@"COMMENT"]){
+                [cookieProperties setObject:value forKey:NSHTTPCookieComment];
+            } else if([uppercaseKey isEqualToString:@"COMMENTURL"]){
+                [cookieProperties setObject:value forKey:NSHTTPCookieCommentURL];
+            } else if([uppercaseKey isEqualToString:@"EXPIRES"]){
+                NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
+                [dateFormatter setLocale:[[NSLocale alloc] initWithLocaleIdentifier:@"en_US"]];
+                dateFormatter.dateFormat = @"EEE, dd-MMM-yyyy HH:mm:ss zzz";
+                [cookieProperties setObject:[dateFormatter dateFromString:value] forKey:NSHTTPCookieExpires];
+            } else if([uppercaseKey isEqualToString:@"DISCARD"]){
+                [cookieProperties setObject:value forKey:NSHTTPCookieDiscard];
+            } else if([uppercaseKey isEqualToString:@"NAME"]){
+                [cookieProperties setObject:value forKey:NSHTTPCookieName];
+            } else if([uppercaseKey isEqualToString:@"VALUE"]){
+                [cookieProperties setObject:value forKey:NSHTTPCookieValue];
+            } else if([uppercaseKey isEqualToString:@"DOMAIN"]) {
+                [cookieProperties setObject:value forKey:NSHTTPCookieDomain];
+            }
+        }
+    }
+    
+    
+    if (![cookieProperties objectForKey:NSHTTPCookiePath]) {
+        [cookieProperties setObject:@"/" forKey:NSHTTPCookiePath];
+    }
+    
+    // Best effort to retrieve the cookie value from a string with the following type:
+    // someCookieValue; path=/; expires= ....; ...
+    if (![cookieProperties objectForKey:NSHTTPCookieValue]) {
+        if([cookieKeyValue count] > 0) {
+            NSString* value = [cookieKeyValue firstObject];
+            if([value rangeOfString:@"="].location == NSNotFound) {
+                [cookieProperties setObject:value forKey:NSHTTPCookieValue];
+            }
+        }
+    }
 
     [cookieProperties setObject:cookieName forKey:NSHTTPCookieName];
-    [cookieProperties setObject:cookieValue forKey:NSHTTPCookieValue];
     [cookieProperties setObject:urlString forKey:NSHTTPCookieOriginURL];
-    [cookieProperties setObject:@"/" forKey:NSHTTPCookiePath];
-
+    
     NSHTTPCookie *cookie = [NSHTTPCookie cookieWithProperties:cookieProperties];
     [[NSHTTPCookieStorage sharedHTTPCookieStorage] setCookie:cookie];
 
