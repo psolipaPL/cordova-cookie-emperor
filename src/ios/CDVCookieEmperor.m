@@ -47,10 +47,28 @@
     [[NSHTTPCookieStorage sharedHTTPCookieStorage] setCookieAcceptPolicy:NSHTTPCookieAcceptPolicyAlways];
 
     CDVPluginResult* pluginResult = nil;
+
     NSString* urlString = [command.arguments objectAtIndex:0];
+    if ([urlString isKindOfClass:[NSNull class]]) {
+        urlString = nil;
+    }
+
     NSString* cookieName = [command.arguments objectAtIndex:1];
+    if ([cookieName isKindOfClass:[NSNull class]]) {
+        cookieName = nil;
+    }
+
     NSString* cookieValue = [command.arguments objectAtIndex:2];
-    
+    if ([cookieValue isKindOfClass:[NSNull class]]) {
+        cookieValue = nil;
+    }
+
+    if (urlString == nil || cookieName == nil || cookieValue == nil) {
+        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"URL, cookie name or cookie value was null"];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+        return;
+    }
+
     NSMutableDictionary *cookieProperties = [NSMutableDictionary dictionary];
     
     // Parse cookie properties from "cookieValue" value
@@ -103,8 +121,6 @@
         [cookieProperties setObject:@"/" forKey:NSHTTPCookiePath];
     }
     
-    // Best effort to retrieve the cookie value from a string with the following type:
-    // someCookieValue; path=/; expires= ....; ...
     if (![cookieProperties objectForKey:NSHTTPCookieValue]) {
         if([cookieKeyValue count] > 0) {
             NSString* value = [cookieKeyValue firstObject];
